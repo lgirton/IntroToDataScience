@@ -11,15 +11,13 @@ documentclass: article
 classoptions: a4paper
 fontsize: 12pt
 bibliography: bibliography.bib
-csl: acm-sig-proceedings.csl
+csl: algorithmica.csl
 header-includes:
     - \usepackage{graphicx}
     - \usepackage{float}
     - \usepackage{lipsum}
     - \usepackage{url}
 
-nocite: |
-    @wiki:stroop
 
 ---
 
@@ -65,7 +63,7 @@ turnstile <- select(turnstile, -daten, -timen, -entriesn, -entriesn_hourly, -exi
 
 \lipsum[2]
 
-[@wiki:stroop]
+[@wiki:xxx]
 
 # Linear Regression
 
@@ -74,6 +72,18 @@ turnstile <- select(turnstile, -daten, -timen, -entriesn, -entriesn_hourly, -exi
 # Visualization
 
 \lipsum[2]
+
+```{r, fig.cap="Histogram of Subway Ridership for Rainy and Non-Rainy days"}
+
+ggplot(turnstile, aes(entries, fill=rain)) +
+    geom_histogram(color="black") +
+    facet_wrap(~rain, nrow=2) +
+    theme(legend.position='none') +
+    xlab("# of Entries") +
+    ylab("Frequency")
+
+```
+
 
 # Conclusion
 
