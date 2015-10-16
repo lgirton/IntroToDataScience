@@ -1,0 +1,70 @@
+---
+title: "Intro to Data Science: NYC Subway Ridership Patterns"
+author: "Lamont Girton"
+date: "October 15, 2015"
+output: 
+  pdf_document: 
+    fig_caption: yes
+    fig_height: 3.5
+    fig_width: 5
+documentclass: article
+classoptions: a4paper
+fontsize: 12pt
+bibliography: bibliography.bib
+
+header-includes:
+    - \usepackage{graphicx}
+    - \usepackage{float}
+    - \usepackage{lipsum}
+---
+
+\begin{abstract}
+    \lipsum[1]
+\end{abstract}
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+library(knitr)
+
+opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.align="center", fig.pos="H")
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(xtable)
+
+```
+
+
+
+```{r, cache=TRUE}
+
+turnstile <- read.csv("./turnstile_weather_v2.csv")
+
+colnames(turnstile) <- tolower(colnames(turnstile))
+
+turnstile$date <- as.Date(turnstile$daten, "%m-%d-%y")
+turnstile$datetime <- as.POSIXct(strptime(paste(turnstile$date,turnstile$timen), "%F %H:%M:%S"))
+turnstile$day_week <- wday(turnstile$date, label = T, abbr = T)
+turnstile$weekday <- as.logical(!(turnstile$day_week %in% c("Sun", "Sat")))
+turnstile$entries <- turnstile$entriesn_hourly
+turnstile$exits <- turnstile$exitsn_hourly
+turnstile$rain <- as.logical(turnstile$rain)
+
+turnstile <- select(turnstile, -daten, -timen, -entriesn, -entriesn_hourly, -exitsn, -exitsn_hourly)
+
+```
+
+# Statistical Test
+
+# Linear Regression
+
+# Visualization
+
+# Conclusion
+
+# Reflection
+
+# References
+
