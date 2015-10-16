@@ -11,11 +11,16 @@ documentclass: article
 classoptions: a4paper
 fontsize: 12pt
 bibliography: bibliography.bib
-
+csl: acm-sig-proceedings.csl
 header-includes:
     - \usepackage{graphicx}
     - \usepackage{float}
     - \usepackage{lipsum}
+    - \usepackage{url}
+
+nocite: |
+    @wiki:stroop
+
 ---
 
 \begin{abstract}
@@ -58,13 +63,24 @@ turnstile <- select(turnstile, -daten, -timen, -entriesn, -entriesn_hourly, -exi
 
 # Statistical Test
 
+\lipsum[2]
+
+[@wiki:stroop]
+
 # Linear Regression
+
+\lipsum[2]
 
 # Visualization
 
+\lipsum[2]
+
 # Conclusion
+
+\lipsum[2]
 
 # Reflection
 
-# References
+\lipsum[2]
 
+# References
