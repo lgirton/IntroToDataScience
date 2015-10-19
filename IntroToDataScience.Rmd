@@ -40,7 +40,6 @@ library(xtable)
 ```
 
 
-
 ```{r, cache=TRUE}
 
 turnstile <- read.csv("./turnstile_weather_v2.csv")
@@ -48,26 +47,70 @@ turnstile <- read.csv("./turnstile_weather_v2.csv")
 colnames(turnstile) <- tolower(colnames(turnstile))
 
 turnstile$date <- as.Date(turnstile$daten, "%m-%d-%y")
-turnstile$datetime <- as.POSIXct(strptime(paste(turnstile$date,turnstile$timen), "%F %H:%M:%S"))
+
+turnstile$datetime <-
+  as.POSIXct(strptime(paste(turnstile$date,turnstile$timen), "%F %H:%M:%S"))
+
 turnstile$day_week <- wday(turnstile$date, label = T, abbr = T)
-turnstile$weekday <- as.logical(!(turnstile$day_week %in% c("Sun", "Sat")))
+
+turnstile$weekday <-
+  as.logical(!(turnstile$day_week %in% c("Sun", "Sat")))
+
 turnstile$entries <- turnstile$entriesn_hourly
 turnstile$exits <- turnstile$exitsn_hourly
-turnstile$rain <- as.logical(turnstile$rain)
+turnstile$rain <- factor(turnstile$rain, labels = c("No Rain", "Rain"))
+turnstile$rain <- relevel(turnstile$rain, "Rain")
 
-turnstile <- select(turnstile, -daten, -timen, -entriesn, -entriesn_hourly, -exitsn, -exitsn_hourly)
+turnstile <-
+  select(turnstile,-daten,-timen,-entriesn,-entriesn_hourly,-exitsn,-exitsn_hourly)
 
 ```
 
 # Statistical Test
 
-\lipsum[2]
+During the _Intro To Data Science_ course, we probed the question of whether Subway ridership increased during rainy days, versus the days it did not rain and if this increase was statistically significant (at the 95% level) or due to random chance in sampling. Our intuition is that the effect of rain will positively increase ridership as people abandon alternative modes of transportation (walking, cycling, etc.) that would otherwise expose them to inclement weather.  The null and alternative hypothesis are listed below:
 
-[@wiki:xxx]
+> $H_0: \text{There is no difference between ridership on rainy and non-rainy days.}$
+\newline
+> $H_a: \text{There is an increase in ridership on rainy days.}$
+
+
+This is a _one-tailed test_, because we're testing for the presence of a _positive_ difference in ridership (dependent variable) due to rain (independent variable).  The table below shows the mean and median of the number number of entries on the subway and from this data, we can see that the distribution is high-skewed to the right (The mean is substantially further to the right than the mean).  The histogram of Ridership in the presence of rain in the _Visualization_ section will also help to illustrate this.
+
+```{r, results='asis'}
+
+# Function to bold column names in xtable
+bold <- function(x) {
+  paste("\\textbf{",x,"}")
+}
+
+# Summary statistics for rain vs. no-rain
+turn_summary <- group_by(turnstile, Rain=rain) %>% 
+  summarise(Mean=mean(entries), Median=median(entries), `Std. Dev.`=sd(entries))
+
+cap <- "Summary statistics on ridership on rainy and non-rainy days."
+# xtable
+tab <- xtable(turn_summary, align = "|l|l|r|r|r|", digits = 2)
+
+# Print xtable
+print.xtable(tab, table.placement = "H", sanitize.colnames.function = bold, comment = F, include.rownames = F)
+
+```
+
+```{r, cache = T}
+
+mww <- wilcox.test(entries ~ rain, turnstile, alt="greater")
+U <- mww$statistic
+pvalue <- mww$p.value
+
+```
+Because of this skewedness, we'll forego the standard two Sample t-Test in favor of the the Mann-Whitney U [@wiki:mannwhitney] test to determine whether the difference in the mean (medians) is significant.  The p-critical value for this test is 0.05 and to consider if there is a statistically significant difference in a one-sided test, the p-value should fall below this critical value ($p < 0.05$).  The results of the Mann-Whitney U showed that the positive effect of rain on ridership was significant at the 0.05 level ($U = `r U`, p = `r pvalue`$).  The \emph{p-value} of $`r pvalue`$ is substantially lower than the critical value of 0.05 and approximately 0.
+
 
 # Linear Regression
 
-\lipsum[2]
+This section will explore using Multiple Linear Regression to generate a model for predicting subway ridership in New York City based on meteorological, spatial and temporal features of the provided dataset.  The dependent variable in this model will be the _Number of Entries_ at the subway station. 
+
 
 # Visualization
 
@@ -75,12 +118,24 @@ turnstile <- select(turnstile, -daten, -timen, -entriesn, -entriesn_hourly, -exi
 
 ```{r, fig.cap="Histogram of Subway Ridership for Rainy and Non-Rainy days"}
 
-ggplot(turnstile, aes(entries, fill=rain)) +
-    geom_histogram(color="black") +
-    facet_wrap(~rain, nrow=2) +
-    theme(legend.position='none') +
-    xlab("# of Entries") +
-    ylab("Frequency")
+ggplot(turnstile, aes(entries, fill = rain)) +
+  geom_histogram(color = "black") +
+  facet_wrap( ~ rain, nrow = 2) +
+  theme(legend.position = 'none') +
+  xlab("# of Entries") +
+  ylab("Frequency")
+
+```
+
+```{r, fig.cap="Barchart of Average Ridership by Weekday. Ridership appears lower on weekends as opposed to weekdays."}
+
+turnstile_wday <- group_by(turnstile, day_week) %>% 
+  summarise(entries=mean(entries))
+
+ggplot(turnstile_wday, aes(day_week, entries)) +
+  geom_bar(stat="identity", color="black", fill="salmon") +
+  xlab("Weekday") +
+  ylab("Average # of Entries")
 
 ```
 
