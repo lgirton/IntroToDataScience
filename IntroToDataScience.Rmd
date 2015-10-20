@@ -36,6 +36,10 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(xtable)
+library(caret)
+library(scales)
+library(ggmap)
+
 
 ```
 
@@ -51,7 +55,7 @@ turnstile$date <- as.Date(turnstile$daten, "%m-%d-%y")
 turnstile$datetime <-
   as.POSIXct(strptime(paste(turnstile$date,turnstile$timen), "%F %H:%M:%S"))
 
-turnstile$day_week <- wday(turnstile$date, label = T, abbr = T)
+turnstile$day_week <- factor(weekdays(turnstile$date, abbr = T), levels = c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"))
 
 turnstile$weekday <-
   as.logical(!(turnstile$day_week %in% c("Sun", "Sat")))
@@ -76,7 +80,18 @@ During the _Intro To Data Science_ course, we probed the question of whether Sub
 > $H_a: \text{There is an increase in ridership on rainy days.}$
 
 
-This is a _one-tailed test_, because we're testing for the presence of a _positive_ difference in ridership (dependent variable) due to rain (independent variable).  The table below shows the mean and median of the number number of entries on the subway and from this data, we can see that the distribution is high-skewed to the right (The mean is substantially further to the right than the mean).  The histogram of Ridership in the presence of rain in the _Visualization_ section will also help to illustrate this.
+This is a _one-tailed test_, because we're testing for the presence of a _positive_ difference in ridership (dependent variable) due to rain (independent variable).  The table below shows the mean and median of the number number of entries on the subway and from this data, we can see that the distribution is high-skewed to the right (The mean is substantially further to the right than the mean). 
+
+```{r, fig.cap="Histogram of Subway Ridership for Rainy and Non-Rainy days.  The distributions are highly skewed to the right and non-normal."}
+
+ggplot(turnstile, aes(entries, fill = rain)) +
+  geom_histogram(color = "black") +
+  facet_wrap( ~ rain, nrow = 2) +
+  theme(legend.position = 'none') +
+  xlab("# of Entries") +
+  ylab("Frequency")
+
+```
 
 ```{r, results='asis'}
 
@@ -99,37 +114,34 @@ print.xtable(tab, table.placement = "H", sanitize.colnames.function = bold, comm
 ```
 
 ```{r, cache = T}
-
 mww <- wilcox.test(entries ~ rain, turnstile, alt="greater")
 U <- mww$statistic
 pvalue <- mww$p.value
-
 ```
 Because of this skewedness, we'll forego the standard two Sample t-Test in favor of the the Mann-Whitney U [@wiki:mannwhitney] test to determine whether the difference in the mean (medians) is significant.  The p-critical value for this test is 0.05 and to consider if there is a statistically significant difference in a one-sided test, the p-value should fall below this critical value ($p < 0.05$).  The results of the Mann-Whitney U showed that a positive effect of rain with respect to ridership was significant at the 0.05 level ($U = `r U`, p = `r pvalue`$).  The \emph{p-value} of $`r pvalue`$ is substantially lower than the critical value of 0.05 and approximately 0.
 
 
 # Linear Regression
 
-This section will explore using Multiple Linear Regression to generate a model for predicting subway ridership in New York City based on meteorological, spatial and temporal features of the provided dataset.  The dependent variable in this model will be the _Number of Entries_ at the subway station.  In analyzing the data, I speculate that the following features will contribute as predictors in the model: 
+This section will explore using Multiple Linear Regression to generate a model for predicting subway ridership in New York City based on meteorological, spatial and temporal features of the provided dataset.  The dependent variable in this model will be the _Number of Entries_ at the subway station.  In analyzing the data, I speculate that the following features should contribute as predictors in the model: 
 
 * Station
 * Time Of Day
 * Day of Week
 * Weather
+    - Rain
+    - Mean Temperature
 
 ## Station
 
 ```{r}
-
 entries_max <- max(turnstile$entries)
-
 ```
 
 
 Some stations will undoubtedly have differences in average volume of entries based on their proximity to areas business centers, etc.  There were `r nlevels(turnstile$unit)` unique stations in the data.  The max number of entries in the dataset was `r entries_max ` and the minimum was `r min(turnstile$entries)`, with a standard deviation of `r sd(turnstile$entries)`. 
 
 ```{r, results='asis'}
-
 top_stations <- turnstile %>% 
     group_by(Unit=unit,Station=station) %>% 
     summarise(`Avg. Entries`=mean(entries)) %>% 
@@ -141,11 +153,9 @@ cap <- "Top 5 Stations by average number of entries."
 tab <- xtable(top_stations, cap, align = "|l|l|l|r|", digits = 2)
 
 print.xtable(tab, table.placement = "H", include.rownames = F, comment = F, sanitize.colnames.function = bold)
-
 ```
 
 ```{r, results='asis'}
-
 bottom_stations <- turnstile %>% 
     group_by(Unit=unit,Station=station) %>% 
     summarise(`Avg. Entries`=mean(entries)) %>% 
@@ -157,43 +167,104 @@ cap <- "Bottom 5 Stations by average number of entries."
 tab <- xtable(bottom_stations, cap, align = "|l|l|l|r|", digits = 2)
 
 print.xtable(tab, table.placement = "H", include.rownames = F, comment = F, sanitize.colnames.function = bold)
+```
+
+[@article:ggmap]
+
+```{r, fig.width=5, fig.height=5}
+
+midpoint <- function(x) {
+    min_x <- min(x)
+    max_x <- max(x)
+    
+    return( min_x + (max_x - min_x) / 2 )
+}
+
+unit_summary <- group_by(turnstile, longitude, latitude, unit) %>% 
+    summarise(entries=mean(entries))
+
+lon_mid <- midpoint(unit_summary$longitude)
+lat_mid <- midpoint(unit_summary$latitude)
+
+map <- get_map(location = c(lon_mid, lat_mid), zoom = 11)
+
+ggmap(map, legend = "none") +
+    geom_point(data=unit_summary, aes(longitude, latitude, size=entries, color=entries)) +
+    theme(legend.position="none")
 
 ```
 
 ## Time of Day
 
-```{r}
+During the course, we also explored the effect of the time of day on ridership.  Below is a plot of the average number of entries by 4-hour periods.  The plot is bimodal with the average number of entries peaking around Noon and around 8pm in the evening.
 
+```{r, fig.cap = "Average Ridership by Time of Day.  Ridership peaks at 12p and 8p during the day."}
 ggplot(turnstile, aes(hour,entries)) +
-    stat_summary(fun.y=mean, geom="bar", color="black", fill="salmon")
-
+    stat_summary(fun.y=mean, geom="bar", color="black", fill="salmon") +
+    xlab("Time of Day") +
+    ylab("Average # of Entries")
 ```
 
+## Day of Week
 
-# Visualization
-
-\lipsum[2]
-
-```{r, fig.cap="Histogram of Subway Ridership for Rainy and Non-Rainy days"}
-
-ggplot(turnstile, aes(entries, fill = rain)) +
-  geom_histogram(color = "black") +
-  facet_wrap( ~ rain, nrow = 2) +
-  theme(legend.position = 'none') +
-  xlab("# of Entries") +
-  ylab("Frequency")
-
-```
+The day of the week also appeared to influence ridership.  From the plot below, the average number of entries peaked on Friday.  There also mean ridership appears to be higher on weekdays than on weekends and this is probably influenced by people commuting to work during the week.
 
 ```{r, fig.cap="Barchart of Average Ridership by Weekday. Ridership appears lower on weekends as opposed to weekdays."}
-
 ggplot(turnstile, aes(day_week, entries)) +
   stat_summary(fun.y=mean, geom = "bar", color="black", fill="salmon") +
   xlab("Weekday") +
   ylab("Average # of Entries")
+```
+
+## Weather
+
+### Rain
+We already explored the effect of rain on ridership in the _Statistical Test_ section of this document and based on the findings will include this feature in the model.
+
+### Mean Temperature
+
+I'm hypothesizing that temperature plays a role in ridership on the subways in NYC as ridership might be higher when the weather is relatively colder or hotter that would influence riders to take the subway as alternatives to say walking or riding a bicycle.  Below is a scatterplot of ridership versus the mean temperature during the 4 hour period.  There doesn't appear to be a linear relationship between the two, but hoping that the non-linearity can be explained through the regression model by other factors (Day of Week, Hour, etc.).
+
+```{r, cache=T, fig.cap="Scatterplot of Mean Temperature v. Ridership.  Ridership appears to be higher in the lower and upper temperature bands"}
+ggplot(turnstile, aes(meantempi, entries)) +
+    geom_point(alpha=0.4, position = position_jitter()) +
+    xlab("Mean Temperature (F)") +
+    ylab("# of Entries")
+```
+
+# Model Fitting
+
+I will use R to perform the linear regression model fitting and will randomly divide the dataset up into a _training_ and _testing_ set with a 75% split for the training and 25% for testing.  I will use Root Mean Squared Error[@wiki:rmse] (RMSE) to evaluate performance of the model against the test dataset.
+
+```{r}
+idx <- sample(nrow(turnstile), floor(nrow(turnstile)*.75))
+train <- turnstile[idx, ]
+test <- turnstile[-idx, ]
+```
+
+```{r, cache=T, echo=TRUE}
+fit <- lm(entries ~ unit + day_week + hour + rain + meantempi, train)
+```
+
+```{r}
+fit.summary <- summary(fit)
+fit.coef <- fit.summary$coefficients
+
+pred <- predict.lm(fit, test)
+perf <- RMSE(pred,test$entries)
 
 ```
 
+Below is a table of the intercept and the coefficients from the linear model.  I have excluded the _unit_ dummy variables from the table, as there were 239 coefficients.  The model had an $R^2$ value of `r fit.summary$r.squared` and a $RMSE = `r perf`$.  The $R^2$ value means that `r percent(fit.summary$r.squared)` of the variance in the response variable can be explained the features selected in the dataset.  As a baseline to compare the performance of the linear model with, I calculated the RMSE of using the mean as the predicted value for all entries in the test set and this produced a RMSE of `r RMSE(mean(train$entries), test$entries)` which was greater than that of the linear model fit.
+
+
+```{r, results='asis'}
+cap <- "Table of the model Intercept and coefficients for a subset of the predictor variables.  Omitted coefficients for the \\emph{unit} dummy variables as there were 239 of them."
+tab <- xtable(fit.coef[grep("^unit", rownames(fit.coef), invert = T),], caption = cap, digits = 4, align = "|l|r|r|r|r|")
+print.xtable(tab, table.placement = "H", comment = F, sanitize.colnames.function = bold)
+```
+
+I had observed that there were predictions made by this model that were negative and in these cases these would not be good estimates, as there is no such things as _negative_ entries and might not be the best model.  The model did perform better than the naïve approach of using the mean as the prediction and so I would certainly select this model over the naïve approach.
 
 # Conclusion
 
