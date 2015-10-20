@@ -28,7 +28,7 @@ header-includes:
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 
 library(knitr)
-
+options(digits=2,scipen = 100)
 opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.align="center", fig.pos="H")
 
 library(ggplot2)
@@ -60,6 +60,7 @@ turnstile$entries <- turnstile$entriesn_hourly
 turnstile$exits <- turnstile$exitsn_hourly
 turnstile$rain <- factor(turnstile$rain, labels = c("No Rain", "Rain"))
 turnstile$rain <- relevel(turnstile$rain, "Rain")
+turnstile$hour <- factor(turnstile$hour)
 
 turnstile <-
   select(turnstile,-daten,-timen,-entriesn,-entriesn_hourly,-exitsn,-exitsn_hourly)
@@ -90,7 +91,7 @@ turn_summary <- group_by(turnstile, Rain=rain) %>%
 
 cap <- "Summary statistics on ridership on rainy and non-rainy days."
 # xtable
-tab <- xtable(turn_summary, align = "|l|l|r|r|r|", digits = 2)
+tab <- xtable(turn_summary, align = "|l|l|r|r|r|", digits = 2, caption = cap)
 
 # Print xtable
 print.xtable(tab, table.placement = "H", sanitize.colnames.function = bold, comment = F, include.rownames = F)
@@ -104,12 +105,69 @@ U <- mww$statistic
 pvalue <- mww$p.value
 
 ```
-Because of this skewedness, we'll forego the standard two Sample t-Test in favor of the the Mann-Whitney U [@wiki:mannwhitney] test to determine whether the difference in the mean (medians) is significant.  The p-critical value for this test is 0.05 and to consider if there is a statistically significant difference in a one-sided test, the p-value should fall below this critical value ($p < 0.05$).  The results of the Mann-Whitney U showed that the positive effect of rain on ridership was significant at the 0.05 level ($U = `r U`, p = `r pvalue`$).  The \emph{p-value} of $`r pvalue`$ is substantially lower than the critical value of 0.05 and approximately 0.
+Because of this skewedness, we'll forego the standard two Sample t-Test in favor of the the Mann-Whitney U [@wiki:mannwhitney] test to determine whether the difference in the mean (medians) is significant.  The p-critical value for this test is 0.05 and to consider if there is a statistically significant difference in a one-sided test, the p-value should fall below this critical value ($p < 0.05$).  The results of the Mann-Whitney U showed that a positive effect of rain with respect to ridership was significant at the 0.05 level ($U = `r U`, p = `r pvalue`$).  The \emph{p-value} of $`r pvalue`$ is substantially lower than the critical value of 0.05 and approximately 0.
 
 
 # Linear Regression
 
-This section will explore using Multiple Linear Regression to generate a model for predicting subway ridership in New York City based on meteorological, spatial and temporal features of the provided dataset.  The dependent variable in this model will be the _Number of Entries_ at the subway station. 
+This section will explore using Multiple Linear Regression to generate a model for predicting subway ridership in New York City based on meteorological, spatial and temporal features of the provided dataset.  The dependent variable in this model will be the _Number of Entries_ at the subway station.  In analyzing the data, I speculate that the following features will contribute as predictors in the model: 
+
+* Station
+* Time Of Day
+* Day of Week
+* Weather
+
+## Station
+
+```{r}
+
+entries_max <- max(turnstile$entries)
+
+```
+
+
+Some stations will undoubtedly have differences in average volume of entries based on their proximity to areas business centers, etc.  There were `r nlevels(turnstile$unit)` unique stations in the data.  The max number of entries in the dataset was `r entries_max ` and the minimum was `r min(turnstile$entries)`, with a standard deviation of `r sd(turnstile$entries)`. 
+
+```{r, results='asis'}
+
+top_stations <- turnstile %>% 
+    group_by(Unit=unit,Station=station) %>% 
+    summarise(`Avg. Entries`=mean(entries)) %>% 
+    ungroup() %>% 
+    arrange(desc(`Avg. Entries`)) %>% 
+    top_n(5)
+
+cap <- "Top 5 Stations by average number of entries."
+tab <- xtable(top_stations, cap, align = "|l|l|l|r|", digits = 2)
+
+print.xtable(tab, table.placement = "H", include.rownames = F, comment = F, sanitize.colnames.function = bold)
+
+```
+
+```{r, results='asis'}
+
+bottom_stations <- turnstile %>% 
+    group_by(Unit=unit,Station=station) %>% 
+    summarise(`Avg. Entries`=mean(entries)) %>% 
+    ungroup() %>% 
+    arrange(`Avg. Entries`) %>% 
+    head(5)
+
+cap <- "Bottom 5 Stations by average number of entries."
+tab <- xtable(bottom_stations, cap, align = "|l|l|l|r|", digits = 2)
+
+print.xtable(tab, table.placement = "H", include.rownames = F, comment = F, sanitize.colnames.function = bold)
+
+```
+
+## Time of Day
+
+```{r}
+
+ggplot(turnstile, aes(hour,entries)) +
+    stat_summary(fun.y=mean, geom="bar", color="black", fill="salmon")
+
+```
 
 
 # Visualization
@@ -129,11 +187,8 @@ ggplot(turnstile, aes(entries, fill = rain)) +
 
 ```{r, fig.cap="Barchart of Average Ridership by Weekday. Ridership appears lower on weekends as opposed to weekdays."}
 
-turnstile_wday <- group_by(turnstile, day_week) %>% 
-  summarise(entries=mean(entries))
-
-ggplot(turnstile_wday, aes(day_week, entries)) +
-  geom_bar(stat="identity", color="black", fill="salmon") +
+ggplot(turnstile, aes(day_week, entries)) +
+  stat_summary(fun.y=mean, geom = "bar", color="black", fill="salmon") +
   xlab("Weekday") +
   ylab("Average # of Entries")
 
