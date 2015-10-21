@@ -67,7 +67,7 @@ turnstile <-
 
 # Introduction
 
-As part of the Udacity's [_Intro to Data Science_](https://www.udacity.com/course/viewer#!/c-ud359-nd) course, NYC Subway Ridership data was obtained from the New York City Metropolitan Transportation Authority and combined with historical weather data from the Weather Underground to perform some statistical analysis.  The first part of the paper will use non-parametric statistical tests to determine if the effect of rain is statistically significant on ridership on the NYC subway.  The paper will go on to generate Linear and Poisson Regression models to predict ridership based on features in the provided dataset.  We will conclude this paper with summary of the results and reflect any potential shortcomings in the data or analysis.
+As part of the Udacity's [_Intro to Data Science_](https://www.udacity.com/course/viewer#!/c-ud359-nd) course, NYC Subway Ridership data was obtained from the New York City Metropolitan Transportation Authority and combined with historical weather data from the Weather Underground to perform some statistical analysis.  The first part of the paper will use non-parametric statistical tests to determine if the effect of rain is statistically significant on ridership on the NYC subway.  The paper will go on to generate Linear and Poisson Regression models to predict ridership based on features in the provided data set.  We will conclude this paper with summary of the results and reflect any potential shortcomings in the data or analysis.
 
 I used the "Improved data set" for this analysis and it can be found [here](https://www.dropbox.com/s/1lpoeh2w6px4diu/improved-dataset.zip?dl=0).  This document was generated using R and Rmarkdown and the source document is available at [GitHub](https://github.com/lgirton/IntroToDataScience/IntroToDataScience.Rmd).
 
@@ -124,7 +124,7 @@ Because of this skewedness, we'll forego the standard two Sample t-Test in favor
 
 # Predicting Subway Ridership using Regression
 
-This section will explore using Multiple Linear Regression to generate a model for predicting subway ridership in New York City based on meteorological, spatial and temporal features of the provided dataset.  The dependent variable in this model will be the _Number of Entries_ at the subway station.  In analyzing the data, I speculate that the following features should contribute as predictors in the model: 
+This section will explore using Multiple Linear Regression to generate a model for predicting subway ridership in New York City based on meteorological, spatial and temporal features of the provided data set.  The dependent variable in this model will be the _Number of Entries_ at the subway station.  In analyzing the data, I speculate that the following features should contribute as predictors in the model: 
 
 * Station
 * Time Of Day
@@ -140,7 +140,7 @@ entries_max <- max(turnstile$entries)
 ```
 
 
-Some stations will undoubtedly have differences in average volume of entries based on their proximity to business centers, etc.  There were `r nlevels(turnstile$unit)` unique stations in the data.  The max number of entries in the dataset was `r entries_max ` and the minimum was `r min(turnstile$entries)`, with a standard deviation of `r sd(turnstile$entries)`. 
+Some stations will undoubtedly have differences in average volume of entries based on their proximity to business centers, etc.  There were `r nlevels(turnstile$unit)` unique stations in the data.  The max number of entries in the data set was `r entries_max ` and the minimum was `r min(turnstile$entries)`, with a standard deviation of `r sd(turnstile$entries)`. 
 
 ```{r, results='asis'}
 top_stations <- turnstile %>% 
@@ -197,7 +197,7 @@ ggmap(map, legend = "none") +
 
 ## Time of Day
 
-During the course, we also explored the effect of the time of day on ridership.  Below is a plot of the average number of entries by 4-hour periods.  The plot is bimodal with the average number of entries peaking around Noon and around 8pm in the evening.
+During the course, we also explored the effect of the time of day on ridership.  Below is a plot of the average number of entries by 4-hour periods.  The plot is bi-modal with the average number of entries peaking around Noon and around 8pm in the evening.
 
 ```{r, fig.cap = "Average Ridership by Time of Day.  Ridership peaks at 12p and 8p during the day."}
 ggplot(turnstile, aes(hour,entries)) +
@@ -224,7 +224,7 @@ We already explored the effect of rain on ridership in the _Statistical Test_ se
 
 ### Mean Temperature
 
-I'm hypothesizing that temperature plays a role in ridership on the subways in NYC as ridership might be higher when the weather is relatively colder or hotter that would influence riders to take the subway as alternatives to say walking or riding a bicycle.  Below is a scatterplot of ridership versus the mean temperature during the 4 hour period.  There doesn't appear to be a linear relationship between the two, but hoping that the non-linearity can be explained through the regression model by other factors (Day of Week, Hour, etc.).
+I'm hypothesizing that temperature plays a role in ridership on the subways in NYC as ridership might be higher when the weather is relatively colder or hotter that would influence riders to take the subway as alternatives to say walking or riding a bicycle.  Below is a scatter plot of ridership versus the mean temperature during the 4 hour period.  There doesn't appear to be a linear relationship between the two, but hoping that the non-linearity can be explained through the regression model by other factors (Day of Week, Hour, etc.).
 
 ```{r, cache=T, fig.cap="Scatterplot of Mean Temperature v. Ridership.  Ridership appears to be higher in the lower and upper temperature bands"}
 ggplot(turnstile, aes(meantempi, entries)) +
@@ -235,7 +235,7 @@ ggplot(turnstile, aes(meantempi, entries)) +
 
 ## Model Fitting
 
-I will use R to perform the linear regression model fitting and will randomly divide the dataset up into a _training_ and _testing_ set with a 75% split for the training and 25% for testing.  I will use Root Mean Squared Error[@wiki:rmse] (RMSE) to evaluate performance of the model against the test dataset.
+I will use R to perform the linear regression model fitting and will randomly divide the data set up into a _training_ and _testing_ set with a 75% split for the training and 25% for testing.  I will use Root Mean Squared Error[@wiki:rmse] (RMSE) to evaluate performance of the model against the test data set.
 
 ```{r}
 idx <- sample(nrow(turnstile), floor(nrow(turnstile)*.75))
@@ -258,7 +258,7 @@ perf.naive <- RMSE(mean(train$entries), test$entries)
 
 ```
 
-Below is a table of the intercept and the coefficients from the linear model.  I have excluded the _unit_ dummy variables from the table, as there were 239 coefficients.  The model had an $R^2$ value of `r fit.summary$r.squared` and a $RMSE = `r perf`$.  The $R^2$ value means that `r percent(fit.summary$r.squared)` of the variance in the response variable can be explained the features selected in the dataset.  As a baseline to compare the performance of the linear model with, I calculated the RMSE of using the mean as the predicted value for all entries in the test set and this produced a RMSE of `r perf.naive` which was greater than that of the linear model fit.
+Below is a table of the intercept and the coefficients from the linear model.  I have excluded the _unit_ dummy variables from the table, as there were 239 coefficients.  The model had an $R^2$ value of `r fit.summary$r.squared` and a $RMSE = `r perf`$.  The $R^2$ value means that `r percent(fit.summary$r.squared)` of the variance in the response variable can be explained the features selected in the data set.  As a baseline to compare the performance of the linear model with, I calculated the RMSE of using the mean as the predicted value for all entries in the test set and this produced a RMSE of `r perf.naive` which was greater than that of the linear model fit.
 
 
 ```{r, results='asis'}
@@ -285,11 +285,11 @@ Below is a table RMSE for three models.  Of the three, the _Poisson Regression_ 
 
 |Model|RMSE|
 |:----|---:|
-|Naïve|`r perf.naive`|
+|Naive|`r perf.naive`|
 |Linear Regression|`r perf`|
 |Poisson Regression|`r perf.poisson`|
 
-Below is a density plot of show the distribution of the entries of the Actual entries from the test dataset, as well as the distribution of the predictions from the Linear and Poisson Regression models.  The Poisson Regression model has a shape (better fit) more consistent with the actual shape of ridership.
+Below is a density plot of show the distribution of the entries of the Actual entries from the test data set, as well as the distribution of the predictions from the Linear and Poisson Regression models.  The Poisson Regression model has a shape (better fit) more consistent with the actual shape of ridership.
 
 ```{r, fig.cap="Comparision of the prediction distributions of the Linear and Poisson Regression models to actual ridership in the test dataset.", fig.width=5}
 
@@ -311,7 +311,7 @@ ggplot(model_dist, aes(entries, fill=Distribution, color=Distribution)) +
 
 In conclusion, we determined that there was positive (# of entries increased on average) effect of rain on ridership and this effect was significant at the 0.05 level ($U = `r U`, p = `r format(pvalue, scientific=T)`$).  The \emph{p-value} of $`r format(pvalue, scientific=T)`$ is substantially lower than the critical value of 0.05 and approximately 0.
 
-We also generated Linear and Poisson Regression models that incorporated spatial, temporal and meteorological features in the data to generate predictions that performed on average better than a naïve approach of using the mean of the entire dataset.
+We also generated Linear and Poisson Regression models that incorporated spatial, temporal and meteorological features in the data to generate predictions that performed on average better than a naive approach of using the mean of the entire data set.
 
 # Reflection
 
