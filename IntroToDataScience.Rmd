@@ -5,8 +5,8 @@ date: "October 15, 2015"
 output: 
   pdf_document: 
     fig_caption: yes
-    fig_height: 3.5
-    fig_width: 5
+    fig_height: 3
+    fig_width: 4
 documentclass: article
 classoptions: a4paper
 fontsize: 12pt
@@ -17,13 +17,7 @@ header-includes:
     - \usepackage{float}
     - \usepackage{lipsum}
     - \usepackage{url}
-
-
 ---
-
-\begin{abstract}
-    \lipsum[1]
-\end{abstract}
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 
@@ -70,6 +64,13 @@ turnstile <-
   select(turnstile,-daten,-timen,-entriesn,-entriesn_hourly,-exitsn,-exitsn_hourly)
 
 ```
+
+# Introduction
+
+As part of the Udacity's [_Intro to Data Science_](https://www.udacity.com/course/viewer#!/c-ud359-nd) course, NYC Subway Ridership data was obtained from the New York City Metropolitan Transportation Authority and combined with historical weather data from the Weather Underground to perform some statistical analysis.  The first part of the paper will use non-parametric statistical tests to determine if the effect of rain is statistically significant on ridership on the NYC subway.  The paper will go on to generate Linear and Poisson Regression models to predict ridership based on features in the provided dataset.  We will conclude this paper with summary of the results and reflect any potential shortcomings in the data or analysis.
+
+I used the "Improved data set" for this analysis and it can be found [here](https://www.dropbox.com/s/1lpoeh2w6px4diu/improved-dataset.zip?dl=0).  This document was generated using R and Rmarkdown and the source document is available at [GitHub](https://github.com/lgirton/IntroToDataScience/IntroToDataScience.Rmd).
+
 
 # Statistical Test
 
@@ -118,7 +119,7 @@ mww <- wilcox.test(entries ~ rain, turnstile, alt="greater")
 U <- mww$statistic
 pvalue <- mww$p.value
 ```
-Because of this skewedness, we'll forego the standard two Sample t-Test in favor of the the Mann-Whitney U [@wiki:mannwhitney] test to determine whether the difference in the mean (medians) is significant.  The p-critical value for this test is 0.05 and to consider if there is a statistically significant difference in a one-sided test, the p-value should fall below this critical value ($p < 0.05$).  The results of the Mann-Whitney U showed that a positive effect of rain with respect to ridership was significant at the 0.05 level ($U = `r U`, p = `r pvalue`$).  The \emph{p-value} of $`r pvalue`$ is substantially lower than the critical value of 0.05 and approximately 0.
+Because of this skewedness, we'll forego the standard two Sample t-Test in favor of the the Mann-Whitney U [@wiki:mannwhitney; @scipy:mannwhitney] test to determine whether the difference in the mean (medians) is significant.  The p-critical value for this test is 0.05 and to consider if there is a statistically significant difference in a one-sided test, the p-value should fall below this critical value ($p < 0.05$).  The results of the Mann-Whitney U showed that a positive effect of rain with respect to ridership was significant at the 0.05 level ($U = `r U`, p = `r format(pvalue, scientific=T)`$).  The \emph{p-value} of $`r format(pvalue, scientific=T)`$ is substantially lower than the critical value of 0.05 and approximately 0.
 
 
 # Linear Regression
@@ -169,9 +170,9 @@ tab <- xtable(bottom_stations, cap, align = "|l|l|l|r|", digits = 2)
 print.xtable(tab, table.placement = "H", include.rownames = F, comment = F, sanitize.colnames.function = bold)
 ```
 
-[@article:ggmap]
+The map below was generated using the _ggmap_ R package [@article:ggmap].  This map helps to illustrate the differences in average entries across the stations (and city).  From the figure, we see that the stations with higher average entries are concentrated in Midtown, Manhattan and this follows the intuition, that Midtown is the center of industry and business and many of those that work there don't or can't afford to live there.
 
-```{r, fig.width=5, fig.height=5}
+```{r, cache=T, fig.width=4, fig.height=4, fig.cap="Map of New York City overlayed with average ridership by UNIT.  Stations with higher average ridership appear to be concentrated in Midtown."}
 
 midpoint <- function(x) {
     min_x <- min(x)
@@ -253,9 +254,11 @@ fit.coef <- fit.summary$coefficients
 pred <- predict.lm(fit, test)
 perf <- RMSE(pred,test$entries)
 
+perf.naive <- RMSE(mean(train$entries), test$entries)
+
 ```
 
-Below is a table of the intercept and the coefficients from the linear model.  I have excluded the _unit_ dummy variables from the table, as there were 239 coefficients.  The model had an $R^2$ value of `r fit.summary$r.squared` and a $RMSE = `r perf`$.  The $R^2$ value means that `r percent(fit.summary$r.squared)` of the variance in the response variable can be explained the features selected in the dataset.  As a baseline to compare the performance of the linear model with, I calculated the RMSE of using the mean as the predicted value for all entries in the test set and this produced a RMSE of `r RMSE(mean(train$entries), test$entries)` which was greater than that of the linear model fit.
+Below is a table of the intercept and the coefficients from the linear model.  I have excluded the _unit_ dummy variables from the table, as there were 239 coefficients.  The model had an $R^2$ value of `r fit.summary$r.squared` and a $RMSE = `r perf`$.  The $R^2$ value means that `r percent(fit.summary$r.squared)` of the variance in the response variable can be explained the features selected in the dataset.  As a baseline to compare the performance of the linear model with, I calculated the RMSE of using the mean as the predicted value for all entries in the test set and this produced a RMSE of `r perf.naive` which was greater than that of the linear model fit.
 
 
 ```{r, results='asis'}
@@ -264,7 +267,46 @@ tab <- xtable(fit.coef[grep("^unit", rownames(fit.coef), invert = T),], caption 
 print.xtable(tab, table.placement = "H", comment = F, sanitize.colnames.function = bold)
 ```
 
-I had observed that there were predictions made by this model that were negative and in these cases these would not be good estimates, as there is no such things as _negative_ entries and might not be the best model.  The model did perform better than the naïve approach of using the mean as the prediction and so I would certainly select this model over the naïve approach.
+I had observed that some of the predictions made by this model were negative, a scenario that doesn't make sense in the real world.  In these cases, it would probably make sense to interpret these values as zero or use Poisson Regression [@wiki:poisson; @ucla:poisson].
+
+```{r, cache = T}
+
+fit.poisson <- glm(entries ~ unit + day_week + hour + rain + meantempi, train, family = poisson())
+
+pred.poisson <- predict(fit.poisson, test)
+
+perf.poisson <- RMSE(exp(pred.poisson), test$entries)
+
+```
+
+## Goodness of fit
+
+Below is a table RMSE for three models.  Of the three, the _Poisson Regression_ model had the lowest error.
+
+|Model|RMSE|
+|:----|---:|
+|Naïve|`r perf.naive`|
+|Linear Regression|`r perf`|
+|Poisson Regression|`r perf.poisson`|
+
+Below is a density plot of show the distribution of the entries of the Actual entries from the test dataset, as well as the distribution of the predictions from the Linear and Poisson Regression models.  The Poisson Regression model has a shape (better fit) more consistent with the actual shape of ridership.
+
+```{r, fig.cap="Comparision of the prediction distributions of the Linear and Poisson Regression models to actual ridership in the test dataset.", fig.width=5}
+
+model_dist <- data.frame(Distribution="Actual", entries=test$entries)
+
+model_dist <- rbind(model_dist, data.frame(Distribution="Linear", entries=pred))
+
+model_dist <- rbind(model_dist, data.frame(Distribution="Poisson", entries=exp(pred.poisson)))
+
+ggplot(model_dist, aes(entries, fill=Distribution, color=Distribution)) + 
+    geom_density(alpha=0.5) + 
+    xlab("# of Entries") +
+    ylab("Frequency") +
+    theme(legend.position="bottom")
+
+```
+
 
 # Conclusion
 
