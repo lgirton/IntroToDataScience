@@ -5,8 +5,6 @@ date: "October 21, 2015"
 output: 
   pdf_document: 
     fig_caption: yes
-    fig_height: 3
-    fig_width: 4
 documentclass: article
 classoptions: a4paper
 fontsize: 12pt
@@ -34,7 +32,7 @@ library(caret)
 library(scales)
 library(ggmap)
 
-
+set.seed(1)
 ```
 
 
@@ -58,7 +56,7 @@ turnstile$entries <- turnstile$entriesn_hourly
 turnstile$exits <- turnstile$exitsn_hourly
 turnstile$rain <- factor(turnstile$rain, labels = c("No Rain", "Rain"))
 turnstile$rain <- relevel(turnstile$rain, "Rain")
-turnstile$hour <- factor(turnstile$hour)
+turnstile$hour <- turnstile$hour
 
 turnstile <-
   select(turnstile,-daten,-timen,-entriesn,-entriesn_hourly,-exitsn,-exitsn_hourly)
@@ -69,7 +67,7 @@ turnstile <-
 
 As part of the Udacity's [_Intro to Data Science_](https://www.udacity.com/course/viewer#!/c-ud359-nd) course, NYC Subway Ridership data was obtained from the New York City Metropolitan Transportation Authority and combined with historical weather data from the Weather Underground to perform some statistical analysis.  The first part of the paper will use non-parametric statistical tests to determine if the effect of rain is statistically significant on ridership on the NYC subway.  The paper will go on to generate Linear and Poisson Regression models to predict ridership based on features in the provided data set.  We will conclude this paper with summary of the results and reflect any potential shortcomings in the data or analysis.
 
-I used the "Improved data set" for this analysis and it can be found [here](https://www.dropbox.com/s/1lpoeh2w6px4diu/improved-dataset.zip?dl=0).  This document was generated using R and Rmarkdown and the source document is available at [GitHub](https://github.com/lgirton/IntroToDataScience/IntroToDataScience.Rmd).
+I used the "Improved data set" for this analysis and it can be found [here](https://www.dropbox.com/s/1lpoeh2w6px4diu/improved-dataset.zip?dl=0).  This document was generated using R and Rmarkdown and the source document is available on GitHub at https://github.com/lgirton/IntroToDataScience/IntroToDataScience.Rmd.
 
 
 # Does Ridership increase on rainy days?
@@ -89,8 +87,9 @@ ggplot(turnstile, aes(entries, fill = rain)) +
   geom_histogram(color = "black") +
   facet_wrap( ~ rain, nrow = 2) +
   theme(legend.position = 'none') +
-  xlab("# of Entries") +
-  ylab("Frequency")
+  xlab("Hourly Entries") +
+  ylab("Frequency") +
+  ggtitle("Histogram of Station Hourly Entries for Rainy and Non-Rainy Days")
 
 ```
 
@@ -127,8 +126,8 @@ Because of this skewedness, we'll forego the standard two Sample t-Test in favor
 This section will explore using Multiple Linear Regression to generate a model for predicting subway ridership in New York City based on meteorological, spatial and temporal features of the provided data set.  The dependent variable in this model will be the _Number of Entries_ at the subway station.  In analyzing the data, I speculate that the following features should contribute as predictors in the model: 
 
 * Station
-* Time Of Day
 * Day of Week
+* Time Of Day
 * Weather
     - Rain
     - Mean Temperature
@@ -145,9 +144,9 @@ Some stations will undoubtedly have differences in average volume of entries bas
 ```{r, results='asis'}
 top_stations <- turnstile %>% 
     group_by(Unit=unit,Station=station) %>% 
-    summarise(`Avg. Entries`=mean(entries)) %>% 
+    summarise(`Avg. Hourly Entries`=mean(entries)) %>% 
     ungroup() %>% 
-    arrange(desc(`Avg. Entries`)) %>% 
+    arrange(desc(`Avg. Hourly Entries`)) %>% 
     top_n(5)
 
 cap <- "Top 5 Stations by average number of entries."
@@ -159,9 +158,9 @@ print.xtable(tab, table.placement = "H", include.rownames = F, comment = F, sani
 ```{r, results='asis'}
 bottom_stations <- turnstile %>% 
     group_by(Unit=unit,Station=station) %>% 
-    summarise(`Avg. Entries`=mean(entries)) %>% 
+    summarise(`Avg. Hourly Entries`=mean(entries)) %>% 
     ungroup() %>% 
-    arrange(`Avg. Entries`) %>% 
+    arrange(`Avg. Hourly Entries`) %>% 
     head(5)
 
 cap <- "Bottom 5 Stations by average number of entries."
@@ -172,7 +171,7 @@ print.xtable(tab, table.placement = "H", include.rownames = F, comment = F, sani
 
 The map below was generated using the _ggmap_ R package [@article:ggmap].  This map helps to illustrate the differences in average entries across the stations (and city).  From the figure, we see that the stations with higher average entries are concentrated in Midtown, Manhattan and this follows the intuition, that Midtown is the center of industry and business and many of those that work there don't or can't afford to live there and choose the subway to commute there.
 
-```{r, cache=T, fig.width=4, fig.height=4, fig.cap="Map of New York City overlayed with average ridership by UNIT.  Stations with higher average ridership appear to be concentrated in Midtown."}
+```{r, cache=T, fig.cap="Map of New York City overlayed with average ridership by UNIT.  Stations with higher average ridership appear to be concentrated in Midtown."}
 
 midpoint <- function(x) {
     min_x <- min(x)
@@ -191,19 +190,9 @@ map <- get_map(location = c(lon_mid, lat_mid), zoom = 11)
 
 ggmap(map, legend = "none") +
     geom_point(data=unit_summary, aes(longitude, latitude, size=entries, color=entries)) +
-    theme(legend.position="none")
+    theme(legend.position="right", axis.text = element_blank(), axis.title = element_blank()) +
+    ggtitle("Average Hourly Entries by Unit")
 
-```
-
-## Time of Day
-
-During the course, we also explored the effect of the time of day on ridership.  Below is a plot of the average number of entries by 4-hour periods.  The plot is bi-modal with the average number of entries peaking around Noon and around 8pm in the evening.
-
-```{r, fig.cap = "Average Ridership by Time of Day.  Ridership peaks at 12p and 8p during the day."}
-ggplot(turnstile, aes(hour,entries)) +
-    stat_summary(fun.y=mean, geom="bar", color="black", fill="salmon") +
-    xlab("Time of Day") +
-    ylab("Average # of Entries")
 ```
 
 ## Day of Week
@@ -214,7 +203,21 @@ The day of the week also appeared to influence ridership.  From the plot below, 
 ggplot(turnstile, aes(day_week, entries)) +
   stat_summary(fun.y=mean, geom = "bar", color="black", fill="salmon") +
   xlab("Weekday") +
-  ylab("Average # of Entries")
+  ylab("Avg. Hourly Entries") +
+  ggtitle("Mean Hourly Entries by Day of Week")
+```
+
+## Time of Day
+
+During the course, we also explored the effect of the time of day on ridership.  Below is a plot of the average number of entries by 4-hour periods.  The plot is bi-modal with the average number of entries peaking around Noon and around 8pm in the evening.
+
+```{r, fig.cap = "Mean hourly station entries by time of day.  Ridership peaks at 12p and 8p during the day."}
+
+ggplot(turnstile, aes(hour, entries, color=day_week)) +
+    stat_summary(fun.y=mean, geom="line") +
+    xlab("Hour") +
+    ylab("Avg. Hourly Entries") +
+    ggtitle("Mean Hourly Entries by Hour and Day")
 ```
 
 ## Weather
@@ -229,8 +232,9 @@ I'm hypothesizing that temperature plays a role in ridership on the subways in N
 ```{r, cache=T, fig.cap="Scatterplot of Mean Temperature v. Ridership.  Ridership appears to be higher in the lower and upper temperature bands"}
 ggplot(turnstile, aes(meantempi, entries)) +
     geom_point(alpha=0.4, position = position_jitter()) +
-    xlab("Mean Temperature (F)") +
-    ylab("# of Entries")
+    xlab("Temperature (F)") +
+    ylab("Hourly Entries") +
+    ggtitle("Scatterplot of Hourly Entries by Temperature (F)")
 ```
 
 ## Model Fitting
@@ -243,7 +247,7 @@ train <- turnstile[idx, ]
 test <- turnstile[-idx, ]
 ```
 
-```{r, cache=T, echo=TRUE}
+```{r, cache=F, echo=TRUE}
 fit <- lm(entries ~ unit + day_week + hour + rain + meantempi, train)
 ```
 
@@ -301,9 +305,10 @@ model_dist <- rbind(model_dist, data.frame(Distribution="Poisson", entries=exp(p
 
 ggplot(model_dist, aes(entries, fill=Distribution, color=Distribution)) + 
     geom_density(alpha=0.5) + 
-    xlab("# of Entries") +
-    ylab("Frequency") +
-    theme(legend.position="bottom")
+    xlab("Hourly Entries") +
+    ylab("Density") +
+    theme(legend.position="bottom") +
+    ggtitle("Distribution of Regression Predictions v. Actual")
 
 ```
 
