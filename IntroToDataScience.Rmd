@@ -74,12 +74,21 @@ I used the "Improved data set" for this analysis and it can be found [here](http
 
 During the _Intro To Data Science_ course, we probed the question of whether Subway ridership increased during rainy days, versus the days it did not rain and if this increase was statistically significant (at the 95% level) or due to random chance in sampling. Our intuition is that the effect of rain will positively increase ridership as people abandon alternative modes of transportation (walking, cycling, etc.) that would otherwise expose them to inclement weather.  The null and alternative hypothesis are listed below:
 
-> $H_0: \text{There is no difference between ridership on rainy and non-rainy days.}$
+> $H_0: \mu_{rain} - \mu_{norain} <= 0$
 \newline
-> $H_a: \text{There is an increase in ridership on rainy days.}$
+> $H_a: \mu_{rain} - \mu_{norain} > 0$
 
 
-This is a _one-tailed test_, because we're testing for the presence of a _positive_ difference in ridership (dependent variable) due to rain (independent variable).  The table below shows the mean and median of the number number of entries on the subway and from this data, we can see that the distribution is high-skewed to the right (The mean is substantially further to the right than the mean). 
+```{r}
+
+tst <- wilcox.test(entries ~ rain, turnstile)
+U <- tst$statistic
+p.value <- tst$p.value
+
+```
+
+
+These null hypothesis test whether the effect of _no rain_ is less than or or roughly equal to the mean ridership on _rainy_ days, with an alternative hypothesis stating that the difference in the population mean is greater for rainy days. This is a _one-tailed test_ [@ucla:stattests], because we're testing for the presence of a _positive_ difference in ridership population mean (dependent variable) due to the effect of rain (independent variable).  The table below shows the mean and median of the number number of entries on the subway and from this data, we can see that the distribution is high-skewed to the right (The mean is substantially further to the right than the mean). 
 
 ```{r, fig.cap="Histogram of Subway Ridership for Rainy and Non-Rainy days.  The distributions are highly skewed to the right and non-normal."}
 
@@ -118,7 +127,7 @@ mww <- wilcox.test(entries ~ rain, turnstile, alt="greater")
 U <- mww$statistic
 pvalue <- mww$p.value
 ```
-Because of this skewedness, we'll forego the standard two Sample t-Test in favor of the the Mann-Whitney U [@wiki:mannwhitney; @scipy:mannwhitney] test to determine whether the difference in the mean (medians) is significant.  The p-critical value for this test is 0.05 and to consider if there is a statistically significant difference in a one-sided test, the p-value should fall below this critical value ($p < 0.05$).  The results of the Mann-Whitney U showed that a positive effect of rain with respect to ridership was significant at the 0.05 level ($U = `r U`, p = `r format(pvalue, scientific=T)`$).  The \emph{p-value} of $`r format(pvalue, scientific=T)`$ is substantially lower than the critical value of 0.05 and approximately 0.
+Because of this skewedness, we'll forego the standard _two-sample Welch's t-Test_ in favor of the the Mann-Whitney U [@wiki:mannwhitney; @scipy:mannwhitney] test to determine whether the difference in the mean (medians) is significant.  Additionally, a two-sided Mann-Whitney U test was performed to determine if there was a statistically significant difference in the population means between hourly entries on rainy and non-rainy days (C = 0.05, U = `r U`, p-value=`p.value`) to determine if we should perform a _direction_ test.  The p-critical value for the direction test is 0.05 and to consider if there is a statistically significant difference in a one-sided test, the p-value should fall below this critical value ($p < 0.05$).  The results of the Mann-Whitney U showed that a positive effect of rain with respect to ridership was significant at the 0.05 level ($U = `r U`, p = `r format(pvalue, scientific=T)`$).  The \emph{p-value} of $`r format(pvalue, scientific=T)`$ is substantially lower than the critical value of 0.05 and approximately 0.
 
 
 # Predicting Subway Ridership using Regression
