@@ -320,6 +320,6 @@ We also generated Linear and Poisson Regression models that incorporated spatial
 
 # Reflection
 
-The data used for this analysis were confined to the month of `r strftime(min(turnstile$date), "%B")` of `r strftime(min(turnstile$date), "%Y")` and it would be helpful to generating a predictive model that included a larger window of time to determine if there were any seasonal effects or longer term underlying trends.  In addition to the data, the features I selected for inclusion into the model were chosen based on some intuition (guessing) about there contributions to the model.  It would be worthwhile to investigate techniques for _Automated Feature Selection_ and more in-depth analysis of the features and interactions with other dependent variables to produce a better fitting model.
+The data used for this analysis were confined to the month of `r strftime(min(turnstile$date), "%B")` of `r strftime(min(turnstile$date), "%Y")` and it would have been helpful to generate a predictive model that included a larger window of time to determine if there were any seasonal effects or longer term underlying trends.  In addition to the data, the features I selected for inclusion into the model were chosen based intuition (guessing) about there contributions to the model.  It would be worthwhile to investigate techniques for _Automated Feature Selection_ and more in-depth analysis of the features and interactions with other dependent variables to produce a better fitting model.
 
 # References
